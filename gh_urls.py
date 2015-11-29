@@ -5,15 +5,26 @@ tweets = sqlContext.read.json(path)
 # tweets.printSchema()
 tweets.registerTempTable("tweets")
 
-favs = sqlContext.sql("SELECT retweeted_status.id_str FROM tweets")
+u = sqlContext.sql("SELECT entities.urls FROM tweets")
+#u.flatMap(lambda tweet: tweet[0]).map(lambda url: url.expanded_url).take(1)
 
-retweets_count = favs.map(lambda word: (word, 1)).reduceByKey(lambda a, b: a+b)
-sorted_retweets = sorted(retweets_count.collect(), key=lambda word: word[1], reverse=True)[0:250]
+
+a = u.flatMap(lambda tweet: tweet[0]).map(lambda url: (url.expanded_url, 1))
+a.reduceByKey(lambda a, b: a+b)
+
+# u.flatMap(lambda word: (word, 1)).reduceByKey(lambda a, b: a+b)
+#retweets_count = favs.map(lambda word: (word, 1)).reduceByKey(lambda a, b: a+b)
+
+sorted_urls = sorted(a.reduceByKey(lambda a, b: a+b).collect(), key=lambda word: word[1], reverse=True)[0:25]
 # done prep
 
 
+
+
+
+
 ids = []
-for i in sorted_retweets:
+for i in sorted_urls:
     if (i[0] is not None) and (len(i[0]) > 0):
         if (i[0][0] is not None) and (len(i[0][0]) > 0):
             query = "SELECT text FROM tweets WHERE id_str = "+str(i[0][0])
