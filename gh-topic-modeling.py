@@ -12,7 +12,7 @@ import numpy
 
 
 # for testing: path = "/Users/timo/Ruby/GetTweets/stored_tweets/2015-05-08.json"
-path = "/Users/timo/Code/GetTweets/stored_tweets/2015-11-05.json"
+path = "/Users/timo/Code/GetTweets/stored_tweets/*"
 #path = "/Users/timo/Ruby/GetTweets/stored_tweets/*"
 tweets = sqlContext.read.json(path)
 tweets.registerTempTable("tweets")
@@ -99,6 +99,7 @@ def normalizeAndSplit(tweet):
 tw_woswarw = tw_wosws.map(lambda tweet: removeRareWords(tweet, rare_words)).map(lambda tweet: removeCommonWords(tweet, common_words)).map(lambda tweet: normalizeAndSplit(tweet) )
 
 texts = tw_woswarw.collect()
+
 dictionary = corpora.Dictionary(texts)
 corpus = [dictionary.doc2bow(text) for text in texts]
 
