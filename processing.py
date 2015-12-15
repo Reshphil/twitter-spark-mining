@@ -40,8 +40,10 @@ def removeCommonWords(tweet, common_words_list):
 # now we have the tw_woswarw (tweets without stopwords and rare words) list of tweets as lists of strings ready to be processed by gensim
 # also, remove special characters
 
-
 def normalizeAndSplit(tweet):
+    # TODO this attempt to catch faulty input does not work!
+    # if type(tweet) is 'pyspark.sql.types.Row':
+    #     raise AttributeError('You are trying to give a Spark SQL Row, you need to be more specific!')
     import re # needed for stripping text of special characters
     ascii_tweet = ''
     if type(tweet) is bytes:
@@ -53,7 +55,12 @@ def normalizeAndSplit(tweet):
         if type(tweet) is str:
             ascii_tweet = tweet
         else:
-            ascii_tweet = tweet.decode().rstrip('\n')
+            try:
+                ascii_tweet = tweet.decode().rstrip('\n')
+            except AttributeError as err:
+                print("Attribute Error: "+str(err))
+                print(tweet)
+                print("Type is: "+str(type(tweet)))
         import re # needed for stripping text of special characters
         # drop special characters
         nospec_tweet = re.sub('[^a-zA-Z\d\s:/]+', '', ascii_tweet)
@@ -65,6 +72,38 @@ def normalizeAndSplit(tweet):
         else:
             return []
 # done
+
+def docToVector(dictionary, doc):
+    return dictionary.doc2bow(normalizeAndSplit(doc))
+
+def printProbVect(ldaModel, dictionary, vec):
+     return ldaModel[docToVector(dictionary, vec)]
+
+def doLDA(corpus, dictionary, num_topics, tweet_ids):
+    import re # needed for stripping text of special characters
+    import unicodedata # needed for unicode to ASCII conversion without errors
+    import gensim # needed for text clustering
+    from gensim import corpora, models, similarities # needed for text clustering
+    import sklearn
+    # extract LDA topics
+    lda = gensim.models.ldamodel.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics, update_every=0, passes=20)
+    # Now that the topic model is built (variable named lda),
+    # next we want to iterate over each tweet (after normalizing the tweet)
+    # and see in which topic that specific tweet goes to, and then to produce tuples of tweet ID and topic ID
+    distros = tweet_ids.map(lambda tw: (tw.id, printProbVect(lda, dictionary, tw.text)) )
+    return distros
+
+def writeWordCountsToCSV(topics):
+    import csv
+    for topic in topics:
+        fname = str(topic)+'.csv'
+        with open(fname, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            header = ['word', 'count']
+            writer.writerow(header)
+            for key in list( topics[topic].keys() ):
+                value = topics[topic][key]
+                writer.writerow([key, value])
 
 def run(tweet_texts):
     import re
