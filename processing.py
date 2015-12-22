@@ -73,6 +73,92 @@ def normalizeAndSplit(tweet):
             return []
 # done
 
+def normalizeAndSplitWithStemming(tweet):
+    import nltk
+    # TODO this attempt to catch faulty input does not work!
+    # if type(tweet) is 'pyspark.sql.types.Row':
+    #     raise AttributeError('You are trying to give a Spark SQL Row, you need to be more specific!')
+    import re # needed for stripping text of special characters
+    ascii_tweet = ''
+    if type(tweet) is bytes:
+        print("This is bytes: ", tweet, " and we need to change it.")
+        raise
+    else:
+        # yes
+        #ascii_tweet = unicodedata.normalize('NFKD', tweet).encode('ascii','ignore')
+        if type(tweet) is str:
+            ascii_tweet = tweet
+        else:
+            try:
+                ascii_tweet = tweet.decode().rstrip('\n')
+            except AttributeError as err:
+                print("Attribute Error: "+str(err))
+                print(tweet)
+                print("Type is: "+str(type(tweet)))
+        # start stemming and all that
+        lcase_tweet = ascii_tweet.lower()
+        from ttp import ttp
+        # twitter tweet cleaner
+        parsed_tweet = ttp.escape(lcase_tweet)
+        import re # needed for stripping text of special characters
+        nospec_tweet = re.sub('[^a-zA-Z\d\s:/]+', '', parsed_tweet)
+        # start stemming
+        import nltk.stem.porter as porter
+        stemmer = porter.PorterStemmer()
+        words = nospec_tweet.split()
+        # stemming for each word
+        out_array = []
+        for w in words:
+            stemmed_word = stemmer.stem(w)
+            if len(stemmed_word) > 1:
+                out_array.append(stemmed_word)
+        # done
+        return out_array
+# done
+
+def normalizeAndSplitWithLemmatization(tweet):
+    import nltk
+    # TODO this attempt to catch faulty input does not work!
+    # if type(tweet) is 'pyspark.sql.types.Row':
+    #     raise AttributeError('You are trying to give a Spark SQL Row, you need to be more specific!')
+    import re # needed for stripping text of special characters
+    ascii_tweet = ''
+    if type(tweet) is bytes:
+        print("This is bytes: ", tweet, " and we need to change it.")
+        raise
+    else:
+        # yes
+        #ascii_tweet = unicodedata.normalize('NFKD', tweet).encode('ascii','ignore')
+        if type(tweet) is str:
+            ascii_tweet = tweet
+        else:
+            try:
+                ascii_tweet = tweet.decode().rstrip('\n')
+            except AttributeError as err:
+                print("Attribute Error: "+str(err))
+                print(tweet)
+                print("Type is: "+str(type(tweet)))
+        # start stemming and all that
+        lcase_tweet = ascii_tweet.lower()
+        from ttp import ttp
+        # twitter tweet cleaner
+        parsed_tweet = ttp.escape(lcase_tweet)
+        import re # needed for stripping text of special characters
+        nospec_tweet = re.sub('[^a-zA-Z\d\s:/]+', '', parsed_tweet)
+        # start stemming
+        from nltk.stem import WordNetLemmatizer
+        wordnet_lemmatizer = WordNetLemmatizer()
+        words = nospec_tweet.split()
+        # lemmatization for each word
+        out_array = []
+        for w in words:
+            lemmatized_word = wordnet_lemmatizer.lemmatize(w)
+            if len(lemmatized_word) > 1:
+                out_array.append(lemmatized_word)
+        # done
+        return out_array
+# done
+
 def docToVector(dictionary, doc):
     return dictionary.doc2bow(normalizeAndSplit(doc))
 
@@ -166,13 +252,14 @@ def run(tweet_texts):
     # tweets without rare rowrds
     tw_wosws = tweet_texts.map(lambda tw: removeStopWords(tw[0], stopwords))
     # word count for each of the words in the corpus
-    word_count = tw_wosws.flatMap(lambda tweet: wordsFromText(tweet)).reduceByKey(lambda a, b: a+b).collect()
+    # word_count = tw_wosws.flatMap(lambda tweet: wordsFromText(tweet)).reduceByKey(lambda a, b: a+b).collect()
     # create a list out of the rare words in the list
-    rare_words = [x[0] for x in word_count if x[1] <= 1]
+    # rare_words = [x[0] for x in word_count if x[1] <= 1]
     # find common words
-    common_words = genCommonWordsList(word_count, 50)
-    tw_woswarw = tw_wosws.map(lambda tweet: removeRareWords(tweet, rare_words)).map(lambda tweet: removeCommonWords(tweet, common_words)).map(lambda tweet: normalizeAndSplit(tweet) )
-    texts = tw_woswarw.collect()
+    # common_words = genCommonWordsList(word_count, 50)
+    # tw_woswarw = tw_wosws.map(lambda tweet: removeRareWords(tweet, rare_words)).map(lambda tweet: removeCommonWords(tweet, common_words)).map(lambda tweet: normalizeAndSplit(tweet) )
+    out = tw_wosws.map(lambda tweet: normalizeAndSplitWithLemmatization(tweet) )
+    texts = out.collect()
     return texts
 
 def sayHello():
