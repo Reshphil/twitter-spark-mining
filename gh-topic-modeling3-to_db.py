@@ -9,6 +9,8 @@ import unicodedata # needed for unicode to ASCII conversion without errors
 import gensim # needed for text clustering
 from gensim import corpora, models, similarities # needed for text clustering
 import sklearn
+import nltk
+nltk.download() # ensure all the necessary corpora are present for lemmatization
 
 # for testing: path = "/Users/timo/Ruby/GetTweets/stored_tweets/2015-05-08.json"
 #path = "/Users/timo/Ruby/GetTweets/stored_tweets/*"
@@ -22,6 +24,7 @@ tweet_texts = sqlContext.sql("SELECT text FROM tweets")
 texts = twpr.run(tweet_texts)
 
 dictionary = corpora.Dictionary(texts)
+dictionary.filter_extremes(no_below=10, no_above=0.25, keep_n=None) # used instead of manually doing this
 corpus = [dictionary.doc2bow(text) for text in texts]
 num_topics = 25
 
