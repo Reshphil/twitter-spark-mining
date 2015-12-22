@@ -1,6 +1,6 @@
 '''You might need to use python 3 with pyspark to get gensim, numpy and sklearn properly installed on OS X'''
 
-fs_path = "/Users/timo/Code/spark/"
+fs_path = "/Users/timo/Code/GetTweets/"
 
 import processing as twpr
 from imp import reload as reload # to use: twpr = reload(twpr)
