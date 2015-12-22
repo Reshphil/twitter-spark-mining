@@ -1,5 +1,7 @@
 '''You might need to use python 3 with pyspark to get gensim, numpy and sklearn properly installed on OS X'''
 
+fs_path = "/Users/timo/Code/spark/"
+
 import processing as twpr
 from imp import reload as reload # to use: twpr = reload(twpr)
 import re # needed for stripping text of special characters
@@ -10,7 +12,8 @@ import sklearn
 
 # for testing: path = "/Users/timo/Ruby/GetTweets/stored_tweets/2015-05-08.json"
 #path = "/Users/timo/Ruby/GetTweets/stored_tweets/*"
-path = "/Users/timo/Code/GetTweets/stored_tweets/2015-05-08.json"
+
+path = fs_path+"stored_tweets/2015-05-08.json"
 tweets = sqlContext.read.json(path)
 tweets.registerTempTable("tweets")
 # tweets without stopwords
@@ -20,9 +23,14 @@ texts = twpr.run(tweet_texts)
 
 dictionary = corpora.Dictionary(texts)
 corpus = [dictionary.doc2bow(text) for text in texts]
+num_topics = 25
+
+# above this is common to both using LDA directly from Gensim and running the proprietary functions below
+# lda = gensim.models.ldamodel.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics, update_every=0, passes=20)
+
+
 tweet_ids = sqlContext.sql("SELECT id_str as id, text FROM tweets")
 
-num_topics = 3
 distros = twpr.doLDA(corpus, dictionary, num_topics, tweet_ids)
 distros_all = distros.collect()
 
