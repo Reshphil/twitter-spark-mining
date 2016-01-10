@@ -26,6 +26,21 @@ dictionary = corpora.Dictionary(texts)
 dictionary.filter_extremes(no_below=5, no_above=0.3, keep_n=None) # used instead of manually doing this
 corpus = [dictionary.doc2bow(text) for text in texts]
 num_topics = 25
+# done
+
+tweet_ids = sqlContext.sql("SELECT id_str as id, text FROM tweets")
+#done
+distros = twpr.doLDA(corpus, dictionary, num_topics, tweet_ids)
+distros_all = distros.collect()
+#done
+
+topics = twpr.TFIDFsFromTopicDistributions(distros_all[0:-1], sqlContext, corpus, dictionary)
+
+
+
+
+
+twpr.writeWordCountsToCSV(topics)
 
 hdp = gensim.models.hdpmodel.HdpModel(corpus, dictionary)
 hdp.print_topics(topics=-1, topn=1)
@@ -44,19 +59,16 @@ hdp.print_topics(topics=-1, topn=1)
 # => 'indiedev'
 
 
-tweet_ids = sqlContext.sql("SELECT id_str as id, text FROM tweets")
-distros = twpr.doLDA(corpus, dictionary, num_topics, tweet_ids)
-distros_all = distros.collect()
 
-topics_dict = twpr.createTopicWordCounts(num_topics, distros_all[0:150], tweets, sqlContext)
+
+#topics_dict = twpr.createTopicWordCounts(num_topics, distros_all[0:150], tweets, sqlContext)
 
 # import numpy
 # Apache PySpark RDD.takeSample requires numpy
 # distros.takeSample(False, 100) # distros.collect()
 # done
 
-# topics = twpr.wordCountFromTopicDistributions(distros_all, sqlContext)
-# twpr.writeWordCountsToCSV(topics)
+
 # done
 
 
