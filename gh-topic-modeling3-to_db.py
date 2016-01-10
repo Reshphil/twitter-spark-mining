@@ -89,7 +89,7 @@ for i in range(num_topics):
         # get the corresponding tweet text
         query = "SELECT text as tweet_text FROM tweets WHERE id_str = "+str(tweet_id)
         text = sqlContext.sql(query).take(1)[0].tweet_text
-        word_array = twpr.normalizeAndSplit(text)
+        word_array = twpr.normalizeAndSplitWithLemmatization(text)
         for word in word_array:
             if topics_dict[topic_name][word] is not None:
                 # add the probability for this word
