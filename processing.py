@@ -63,7 +63,7 @@ def normalizeAndSplit(tweet):
                 print("Type is: "+str(type(tweet)))
         import re # needed for stripping text of special characters
         # drop special characters
-        nospec_tweet = re.sub('[^a-zA-Z\d\s:/]+', '', ascii_tweet)
+        nospec_tweet = re.sub('[\n\t\r\v\f;\"\']+|[^a-zA-Z\d\s:/]+|[\/.:?=_&#!]+|http+|https+|www+|.com+|bit.ly', '', ascii_tweet)
         # lowercase and split
         norm_tweet = nospec_tweet.lower()
         # if nothing remains, return empty array
@@ -101,7 +101,7 @@ def normalizeAndSplitWithStemming(tweet):
         # twitter tweet cleaner
         parsed_tweet = ttp.escape(lcase_tweet)
         import re # needed for stripping text of special characters
-        nospec_tweet = re.sub('[^a-zA-Z\d\s:/]+', '', parsed_tweet)
+        nospec_tweet = re.sub('[\n\t\r\v\f;\"\']+|[^a-zA-Z\d\s:/]+|[\/.:?=_&#!]+|http+|https+|www+|.com+|bit.ly', '', parsed_tweet)
         # start stemming
         import nltk.stem.porter as porter
         stemmer = porter.PorterStemmer()
@@ -144,7 +144,7 @@ def normalizeAndSplitWithLemmatization(tweet):
         # twitter tweet cleaner
         parsed_tweet = ttp.escape(lcase_tweet)
         import re # needed for stripping text of special characters
-        nospec_tweet = re.sub('[^a-zA-Z\d\s:/]+', '', parsed_tweet)
+        nospec_tweet = re.sub('[\n\t\r\v\f;\"\']+|[^a-zA-Z\d\s:/]+|[\/.:?=_&#!]+|http+|https+|www+|.com+|bit.ly', '', parsed_tweet)
         # start stemming
         from nltk.stem import WordNetLemmatizer
         wordnet_lemmatizer = WordNetLemmatizer()
