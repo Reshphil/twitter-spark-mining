@@ -1,6 +1,6 @@
 '''You might need to use python 3 with pyspark to get gensim, numpy and sklearn properly installed on OS X'''
 
-fs_path = "/Users/timo/Code/GetTweets/"
+fs_path = "/Users/timo/Code/spark/"
 
 import processing as twpr
 from imp import reload as reload # to use: twpr = reload(twpr)
@@ -24,7 +24,7 @@ tweet_texts = sqlContext.sql("SELECT text FROM tweets")
 texts = twpr.run(tweet_texts)
 
 dictionary = corpora.Dictionary(texts)
-dictionary.filter_extremes(no_below=2, no_above=0.5, keep_n=None) # used instead of manually doing this
+dictionary.filter_extremes(no_below=5, no_above=0.3, keep_n=None) # used instead of manually doing this
 corpus = [dictionary.doc2bow(text) for text in texts]
 num_topics = 25
 
