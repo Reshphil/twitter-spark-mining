@@ -302,6 +302,18 @@ def TFIDFsFromTopicDistributions(distros_all, sqlContext, corpus, dictionary):
         print(" -- Analysis for tweet "+str(counter)+"/"+str(length)+" completed.")
     return topics
 
+def writeTFIDFsToCSV(topics):
+    import csv
+    with open('tfidf_topics.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        header = ['word', 'tfidf', 'topic']
+        for topic in topics:
+            topicname = str(topic)
+            writer.writerow(header)
+            for key in list( topics[topic].keys() ):
+                value = topics[topic][key]
+                writer.writerow([key, value, topicname])
+
 def writeWordCountsToCSV(topics):
     import csv
     for topic in topics:

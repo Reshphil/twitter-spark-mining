@@ -37,7 +37,16 @@ distros_all = distros.collect()
 topics = twpr.TFIDFsFromTopicDistributions(distros_all[0:-1], sqlContext, corpus, dictionary)
 
 
-
+import csv
+with open('tfidf_topics.csv', 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    header = ['word', 'tfidf', 'topic']
+    for topic in topics:
+        topicname = str(topic)
+        writer.writerow(header)
+        for key in list( topics[topic].keys() ):
+            value = topics[topic][key]
+            writer.writerow([key, value, topicname])
 
 
 twpr.writeWordCountsToCSV(topics)
