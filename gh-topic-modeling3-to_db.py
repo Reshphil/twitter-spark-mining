@@ -17,10 +17,9 @@ import nltk
 
 path = fs_path+"stored_tweets/2015-05-08.json"
 tweets = sqlContext.read.json(path)
-tweets.registerTempTable("tweets")
-# tweets without stopwords
-tweet_texts = sqlContext.sql("SELECT text FROM tweets")
 
+tweets.registerTempTable("tweets")
+tweet_texts = sqlContext.sql("SELECT text FROM tweets")
 texts = twpr.run(tweet_texts)
 
 dictionary = corpora.Dictionary(texts)
@@ -46,17 +45,18 @@ hdp.print_topics(topics=-1, topn=1)
 
 
 tweet_ids = sqlContext.sql("SELECT id_str as id, text FROM tweets")
-
 distros = twpr.doLDA(corpus, dictionary, num_topics, tweet_ids)
 distros_all = distros.collect()
+
+topics_dict = twpr.createTopicWordCounts(num_topics, distros_all[0:150], tweets, sqlContext)
 
 # import numpy
 # Apache PySpark RDD.takeSample requires numpy
 # distros.takeSample(False, 100) # distros.collect()
 # done
 
-topics = twpr.wordCountFromTopicDistributions(distros_all, sqlContext)
-twpr.writeWordCountsToCSV(topics)
+# topics = twpr.wordCountFromTopicDistributions(distros_all, sqlContext)
+# twpr.writeWordCountsToCSV(topics)
 # done
 
 
@@ -78,27 +78,7 @@ twpr.writeWordCountsToCSV(topics)
 
 
 
-topics_dict = {}
-for i in range(num_topics):
-    topic_name = '' # topic_name is a string
-    topic_name = 'topic'+str(i+1) # a string such as topic1 or topic25
-    # create word counts for this topic (index position in all topic distros)
-    for distro_row in distros_all:
-        tweet_id = distro_row[0] # id
-        distro_values = distro_row[1:-1] # distributions, not id
-        # get the corresponding tweet text
-        query = "SELECT text as tweet_text FROM tweets WHERE id_str = "+str(tweet_id)
-        text = sqlContext.sql(query).take(1)[0].tweet_text
-        word_array = twpr.normalizeAndSplitWithLemmatization(text)
-        for word in word_array:
-            if topics_dict[topic_name][word] is not None:
-                # add the probability for this word
-                topics_dict[topic_name][word] = topics_array[topic_name][word]+distro_values[i]
-            else:
-                # initialize with the probability for this word
-                topics_dict =
-                topics_dict[topic_name][word] = distro_values[i]
-# done
+
 
 
 

@@ -262,5 +262,57 @@ def run(tweet_texts):
     texts = out.collect()
     return texts
 
+
+def createTopicWordCounts(num_topics, distros_all, tweet_rdd, sqlContext):
+    tweet_rdd.registerTempTable("tweets_for_distros")
+    topics_dict = {}
+    for i in range(num_topics):
+        # cycling through each topic
+        topic_name = '' # topic_name is a string
+        topic_name = 'topic'+str(i+1) # a string such as topic1 or topic25
+        # create word counts for this topic (index position in all topic distros)
+        print('\n\n #-- Starting iteration for topic ', topic_name)
+        for distro_row in distros_all:
+            # debug: print("\n -#--- Starting iteration for new tweet:")
+            tweet_id = distro_row[0] # id
+            # debug: print("The ID of this tweet is: ",tweet_id)
+            distro_values = distro_row[1] # distributions, not id
+            # get the corresponding tweet text
+            query = "SELECT text as tweet_text FROM tweets_for_distros WHERE id_str = "+str(tweet_id)
+            text = sqlContext.sql(query).take(1)[0].tweet_text
+            # debug: print("The tweet text is: ", text)
+            word_array = normalizeAndSplitWithLemmatization(text)
+            matching_topics = [item for item in distro_values if item[0] == i]
+            # => [(20, 0.66941098782833874)]
+            if len(matching_topics) > 0:
+                prob = matching_topics[0][1] # from [(20, 0.669..)] to 0.669..
+                # only if the row contains matches with the topic being iterated over
+                for word in word_array:
+                    try:
+                        if topics_dict[topic_name] is None:
+                            # debug: print('Attempting to create new topic:', topic_name)
+                            topics_dict[topic_name] = {word: prob}
+                        else:
+                            try:
+                                if topics_dict[topic_name][word] is not None:
+                                    # add the probability for this word
+                                    original_prob = topics_dict[topic_name][word]
+                                    topics_dict[topic_name][word] = topics_dict[topic_name][word]+prob
+                                    # debug: print("Adding to existing word ", word, "in topic ", topic_name, "the total prob of ", str(topics_dict[topic_name][word]+prob), "from original prob ", str(original_prob), ".")
+                                else:
+                                    # initialize with the probability for this word
+                                    # matching_topic = [item for item in distro_values if item[0] == i]
+                                    # debug: print("Creating new word", word, "in topic ", topic_name, ", with prob: ", str(prob))
+                                    topics_dict[topic_name][word] = prob
+                            except:
+                                # debug: print("Creating new word", word, "in topic ", topic_name, ", with prob: ", str(prob))
+                                topics_dict[topic_name][word] = prob
+                    except:
+                        # debug: print('Attempting to create new topic:', topic_name)
+                        topics_dict[topic_name] = {word: prob}
+    return topics_dict
+# done
+
+
 def sayHello():
     print("This works")
