@@ -47,6 +47,8 @@ distros = twpr.doLDA(corpus, dictionary, num_topics, tweet_ids)
 distros_all = distros.collect()
 # now we have the LDA topic probability distributions in memory
 
+hdp = twpr.doHDP(corpus, dictionary)
+
 # to make sense of the LDA output, we need to somehow look at the data
 # thus, we'll write the topics into CSV, weighted with TF-IDF frequencies
 topics = twpr.TFIDFsFromTopicDistributions(distros_all[0:-1], sqlContext, corpus, dictionary)
