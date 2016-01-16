@@ -346,6 +346,21 @@ def run(tweet_texts):
     texts = out.collect()
     return texts
 
+def buildDictionaryFromTexts(texts):
+    from gensim import corpora
+    dictionary = corpora.Dictionary(texts)
+    dictionary.filter_extremes(no_below=5, no_above=0.3, keep_n=None) # used instead of manually doing this
+    return dictionary
+
+def buildCorpusFromDictionaryAndTexts(texts, dictionary):
+    corpus = [dictionary.doc2bow(text) for text in texts]
+    return corpus
+
+def doHDP(corpus, dictionary):
+    from gensim import models
+    hdp = models.hdpmodel.HdpModel(corpus, dictionary)
+    # hdp.print_topics(topics=-1, topn=1)
+    return hdp
 
 def createTopicWordCounts(num_topics, distros_all, tweet_rdd, sqlContext):
     tweet_rdd.registerTempTable("tweets_for_distros")
