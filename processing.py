@@ -285,6 +285,14 @@ def writeWordCountsToCSV(topics):
                 value = topics[topic][key]
                 writer.writerow([key, value])
 
+def runWithoutMap(tweet_texts):
+    out_array = []
+    stopwords = loadStopWordsFromFile()
+    for tweet in tweet_texts:
+        tw_wosws = removeStopWords(tweet, stopwords)
+        out_array.append(normalizeAndSplitWithLemmatization(tw_wosws))
+    return out_array
+
 def run(tweet_texts):
     import re
     import unicodedata # needed for unicode to ASCII conversion without errors

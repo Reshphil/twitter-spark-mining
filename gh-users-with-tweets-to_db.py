@@ -1,28 +1,4 @@
-from mongoengine import *
-import json
-import re
-from pprint import pprint as pp
-
-connect('twitterusers')
-
-class User(Document):
-    user_id = StringField(required=True, primary_key=True, unique=True)
-    user_name = StringField(required=True, max_length=50)
-    followers_count = IntField(required=True)
-    following_count = IntField(required=True)
-    listed_count = IntField(required=True)
-    ratio = FloatField(required=True)
-    tweet_count = IntField(required=True)
-    tweets = ListField()
-    ratio_per_tweet = FloatField()
-    # meta
-    meta = {'allow_inheritance': True}
-
-class Tweet(Document):
-    tweet_id = StringField(required=True, primary_key=True, unique=True)
-    user_id = StringField(required=True)
-    tweet_text = StringField(required=True)
-    raw_json_as_dict = DictField(required=True)
+from mongoengine_models import *
 
 fs_path = "/Users/timo/Code/spark/"
 
