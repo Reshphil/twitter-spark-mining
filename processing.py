@@ -33,29 +33,41 @@ class User(Document):
     # meta
     meta = {'allow_inheritance': True}
     # methods
-    def getTweets(self):
-        tweets = Tweet.objects(user_id=self.id)
+    def getTweets(user):
+        print("Getting tweets for user: ",str(user.user_id), ".")
+        tweets = Tweet.objects(user_id=user.user_id)
+        print("Amount of tweets is: ", str(len(tweets)), ".")
         return tweets
     def getTweetsFromUsers(users):
         out_tweets = []
+        counter = 0
         for u in users:
+            print("Length of Users list:" ,str(len(users)))
             if isinstance(u, User):
-                tweets = u.getTweets()
+                counter = counter+1
+                print("Now getting tweets for user ", str(counter), " out of total ", str(len(users)), ".")
+                tweets = User.getTweets(u)
+                print("The amount of tweets is: ", str(len(tweets)))
                 for t in tweets:
                     out_tweets.append(t)
-                return out_tweets
             else:
                 raise Exception("User object is not instance of User class!")
+        return out_tweets
     def getTextsFromUsers(users):
         texts = []
+        counter = 0
         for u in users:
+            print("Length of Users list:" ,str(len(users)))
             if isinstance(u, User):
-                tweets = u.getTweets()
+                counter = counter+1
+                print("Now getting tweets for user ", str(counter), " out of total ", str(len(users)), ".")
+                tweets = User.getTweets(u)
+                print("The amount of tweets is: ", str(len(tweets)))
                 for t in tweets:
                     texts.append(t.tweet_text)
-                return texts
             else:
                 raise Exception("User object is not instance of User class!")
+        return texts
 
 # since the stopword list is 1000+ words long,
 # it's best to not store it in the script file but to load it
