@@ -1,6 +1,7 @@
 from mongoengine import *
 import json
 import re
+from pprint import pprint as pp
 
 connect('twitterusers')
 
@@ -13,6 +14,7 @@ class User(Document):
     ratio = FloatField(required=True)
     tweet_count = IntField(required=True)
     tweets = ListField()
+    ratio_per_tweet = FloatField()
     # meta
     meta = {'allow_inheritance': True}
 
@@ -103,7 +105,7 @@ def proceedToSaveTweets(user, tweet_id_array):
     else:
         return tweet_id_array
 
-def saveUser(user):
+def saveUser(user, ratio):
     # populate user object
     try:
         user_object = User(user_id=user.user_id, \
@@ -139,9 +141,34 @@ def processUsers(users):
         else:
             ratio = -1
         # try:
-        saveUser(user)
+        saveUser(user, ratio)
         # except:
         #     print("Saving user failed because..")
         #     pass
 
 processUsers(users)
+
+def reCalculateRatioForUsers():
+    for p in User.objects():
+        if p.following_count is not 0 and p.following_count is not -1:
+            p.ratio = float(float(p.followers_count)/float(p.following_count))
+        else:
+            p.ratio = 0.00
+        p.save()
+
+def printUsersFromDB():
+    for p in User.objects().order_by('ratio_per_tweet'):
+        print("\n\n ---- ")
+        print("Username: ", str(p.user_name))
+        print("Ratio: ", str(p.ratio))
+        print("Ratio per tweet: ", str(p.ratio_per_tweet))
+        print("Following: ", str(p.following_count))
+        print("Followers: ", str(p.followers_count))
+        print("Tweets in this dataset: ", str(len(p.tweets)))
+
+def calculateRatioPerTweet():
+    for p in User.objects():
+        if p.ratio is not 0 and p.ratio is not -1:
+            rpt = p.ratio/len(p.tweets)
+            p.ratio_per_tweet = rpt
+        p.save()
