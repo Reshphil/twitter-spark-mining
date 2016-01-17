@@ -53,21 +53,57 @@ u = sqlContext.sql("SELECT * FROM tweet_users WHERE following_c > 0 AND ratio > 
 
 users = u.collect()
 
-for user in users:
-    print(user.user_id)
+def printUserInfo(user):
+    # print(user.user_id)
     print(user.username)
-    print(user.followers_c)
-    print(user.following_c)
-    print(user.ratio)
-    print(user.listed_c)
-    print(user.tweets_c)
-    # begin saving to DB
-    tweet_id_array = []
-    # since for some users the ratio can be None, do a check for that
-    if user.ratio is not None:
-        ratio = user.ratio
+    # print(user.followers_c)
+    # print(user.following_c)
+    # print(user.ratio)
+    # print(user.listed_c)
+    # print(user.tweets_c)
+
+def proceedToSaveTweets(user, tweet_id_array):
+    # get tweet IDs for user
+    tweets_ids = sqlContext.sql("SELECT distinct(id_str) as tweet_id \
+        FROM tweets WHERE user.id_str LIKE "+user.user_id).collect()
+    # build each tweet and save to DB
+    try:
+        # increment the counter for tweet_counter
+        tweet_counter = 0
+        for twid in tweets_ids:
+            tweet_counter = tweet_counter+1
+            print("Processing tweet number ", str(tweet_counter), " of ", \
+                str(len(tweets_ids)), " tweets total.")
+            try:
+                tweet_df = sqlContext.sql("SELECT * FROM tweets \
+                    WHERE id_str LIKE "+twid.tweet_id)
+                tweet = tweet_df.first()
+                json_to_be_loaded = tweet_df.toJSON().first()
+                json_to_be_loaded = re.sub('[$]oid+', 'oid', json_to_be_loaded)
+                # print(json_to_be_loaded)
+                json_to_dict = json.loads(json_to_be_loaded)
+            except:
+                print("Loading tweet from Spark failed because: ", e)
+                raise
+            else:
+                # try to save Tweet
+                try:
+                    tweet_object = Tweet(tweet_id=tweet.id_str, \
+                        user_id=tweet.user.id_str, \
+                        tweet_text=tweet.text, \
+                        raw_json_as_dict=json_to_dict).save()
+                    tweet_id_array.append(tweet_object.tweet_id)
+                    # print(" --- : "+tweet.text)
+                except ValidationError as e:
+                    print("FYI: Saving tweet ", tweet.text, " failed because: ", e)
+                    pass
+    except:
+        print("Getting Tweets for User Failed!")
+        raise
     else:
-        ratio = -1
+        return tweet_id_array
+
+def saveUser(user):
     # populate user object
     try:
         user_object = User(user_id=user.user_id, \
@@ -81,45 +117,31 @@ for user in users:
         print("FYI: Saving user ", user.username, " failed because: ", e)
         pass
     else:
-        # get tweet IDs for user
-        tweets_ids = sqlContext.sql("SELECT distinct(id_str) as tweet_id \
-            FROM tweets WHERE user.id_str LIKE "+user.user_id).collect()
-        # build each tweet and save to DB
+        tweet_id_array = []
+        tweet_id_array = proceedToSaveTweets(user, tweet_id_array)
         try:
-            for twid in tweets_ids:
-                try:
-                    tweet_df = sqlContext.sql("SELECT * FROM tweets \
-                        WHERE id_str LIKE "+twid.tweet_id)
-                    tweet = tweet_df.first()
-                    json_to_be_loaded = tweet_df.toJSON().first()
-                    json_to_be_loaded = re.sub('[$]oid+', 'oid', json_to_be_loaded)
-                    print(json_to_be_loaded)
-                    json_to_dict = json.loads(json_to_be_loaded)
-                except:
-                    print("Loading tweet from Spark failed because: ", e)
-                    raise
-                else:
-                    # try to save Tweet
-                    try:
-                        tweet_object = Tweet(tweet_id=tweet.id_str, \
-                            user_id=tweet.user.id_str, \
-                            tweet_text=tweet.text, \
-                            raw_json_as_dict=json_to_dict).save()
-                        tweet_id_array.append(tweet_object.tweet_id)
-                        print(" --- : "+tweet.text)
-                    except ValidationError as e:
-                        print("FYI: Saving tweet ", tweet.text, " failed because: ", e)
-                        pass
-        except:
-            print("Getting Tweets for User Failed!")
-            raise
-        else:
             user_object.tweets = tweet_id_array
-            # finally, try to save User with Tweets
-            try:
-                user_object.save()
-            except ValidationError as e:
-                print("FYI: Saving user with tweets ", user.username, " failed because: ", e)
-                pass
-        # done saving to DB
-        print("\n\n --- \n\n")
+            user_object.save()
+        except ValidationError as e:
+            print("FYI: Saving user with tweets ", user.username, " failed because: ", e)
+            pass
+
+def processUsers(users):
+    counter = 0
+    for user in users:
+        # start by incrementing the counter
+        counter = counter+1
+        print("Processing user ", str(counter), " out of ", str(len(users)), "users total.")
+        # begin saving to DB
+        # since for some users the ratio can be None, do a check for that
+        if user.ratio is not None:
+            ratio = user.ratio
+        else:
+            ratio = -1
+        # try:
+        saveUser(user)
+        # except:
+        #     print("Saving user failed because..")
+        #     pass
+
+processUsers(users)
