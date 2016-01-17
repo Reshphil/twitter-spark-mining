@@ -362,6 +362,40 @@ def writeWordCountsToCSV(topics):
                 value = topics[topic][key]
                 writer.writerow([key, value])
 
+def writeMongoDistrosIntoCSV(distros, num_topics, filename='tweet_distro.csv'):
+    with open(filename, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        for tweet_distro in distros:
+            output_list = []
+            # get the ID of the tweet from the first column of the distro row
+            tweet_id = tweet_distro[0]
+            # fetch the user of the tweet from the DB
+            user_id = Tweet.objects(tweet_id=tweet_id).first().user_id
+            # construct URL with user ID and tweet ID so that the tweet can be inspected
+            url = "\"https://twitter.com/"+user_id+"/status/"+tweet_id+"/\""
+            output_list.append(url)
+            # next, generate the tweet long-form, untouched text, but first transform it into ASCII if it's unicode
+            # but append only last for prettier formatting
+            # in order to not have to do this in each iteration
+            # of the populating of the non-sparse list, let's do it now
+            sparse_keys_list = []
+            for i in tweet_distro[1]:
+                sparse_keys_list.append(i[0])
+            # iterate over the sparse distro list and create non-sparse list
+            for i in range(num_topics):
+                # each iteration represents one topic group in the topic model with 100 topics by default
+                # remember python zero-index vs. 1-index topic ID's
+                # i represents the topic number
+                if i+1 in sparse_keys_list:
+                    # j represents the different probability distribution list items which are tuples ([int]index, [float]probability)
+                    for j in tweet_distro[1]:
+                        if i+1 == j[0]:
+                            output_list.append(j[1])
+                else:
+                    output_list.append(0)
+            # finally, write CSV row
+            writer.writerow(output_list)
+
 def runWithoutMap(tweet_texts):
     out_array = []
     stopwords = loadStopWordsFromFile()

@@ -6,6 +6,7 @@ import gensim # needed for text clustering
 from gensim import corpora, models, similarities # needed for text clustering
 import sklearn
 import nltk
+import csv
 # nltk.download() # ensure all the necessary corpora are present for lemmatization
 
 
@@ -27,6 +28,7 @@ lda = models.ldamodel.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num
 # get the distributions for each tweet
 tweets_for_lda = twpr.User.getTweetsFromUsers(users)
 distros = twpr.distrosForTweetsFromLDAModel(lda, dictionary, tweets_for_lda)
+twpr.writeMongoDistrosIntoCSV(distros, num_topics, 'new_distros.csv')
 
 # print the topic keywords with the TF-IDF frequencies as weights
 topics = twpr.TFIDFsFromMongoDBTopicDistributions(distros, corpus, dictionary)
