@@ -1,8 +1,66 @@
+import re
+import pickle
+import gensim # needed for text clustering
+from gensim import corpora, models, similarities # needed for text clustering
+import nltk
+from ttp import ttp
+from nltk.stem import WordNetLemmatizer
+import unicodedata # needed for unicode to ASCII conversion without errors
+import sklearn
+import csv
+from mongoengine import *
+import json
+from pprint import pprint as pp
+
+connect('twitterusers')
+
+class Tweet(Document):
+    tweet_id = StringField(required=True, primary_key=True, unique=True)
+    user_id = StringField(required=True)
+    tweet_text = StringField(required=True)
+    raw_json_as_dict = DictField(required=True)
+
+class User(Document):
+    user_id = StringField(required=True, primary_key=True, unique=True)
+    user_name = StringField(required=True, max_length=50)
+    followers_count = IntField(required=True)
+    following_count = IntField(required=True)
+    listed_count = IntField(required=True)
+    ratio = FloatField(required=True)
+    tweet_count = IntField(required=True)
+    tweets = ListField()
+    ratio_per_tweet = FloatField()
+    # meta
+    meta = {'allow_inheritance': True}
+    # methods
+    def getTweets(self):
+        tweets = Tweet.objects(user_id=self.id)
+        return tweets
+    def getTweetsFromUsers(users):
+        out_tweets = []
+        for u in users:
+            if isinstance(u, User):
+                tweets = u.getTweets()
+                for t in tweets:
+                    out_tweets.append(t)
+                return out_tweets
+            else:
+                raise Exception("User object is not instance of User class!")
+    def getTextsFromUsers(users):
+        texts = []
+        for u in users:
+            if isinstance(u, User):
+                tweets = u.getTweets()
+                for t in tweets:
+                    texts.append(t.tweet_text)
+                return texts
+            else:
+                raise Exception("User object is not instance of User class!")
+
 # since the stopword list is 1000+ words long,
 # it's best to not store it in the script file but to load it
 # with pickle from a pickle-encoded python list
 def loadStopWordsFromFile(filename='stopwords.pkl'):
-    import pickle
     pkl_file = open(filename, 'rb')
     stopwords = pickle.load(pkl_file)
     return stopwords
@@ -14,7 +72,6 @@ def removeStopWords(tweet, stopword_list):
 #done
 
 def unicodeToASCII(text=''):
-    import re
     out = text.decode().rstrip('\n')
     return out
 
@@ -29,7 +86,6 @@ def wordsFromText(tweet):
     return words
 
 def removeSpecialCharactersAndSomeURLs(text=''):
-    import re
     out = re.sub('[\n\t\r\v\f;\"\']+|[^a-zA-Z\d\s:/]+|[/.:?=_&#!]+|http+|https+|www+|.com+|bit.ly', '', text)
     return out
 
@@ -62,7 +118,6 @@ def normalizeAndSplit(tweet):
     # TODO this attempt to catch faulty input does not work!
     # if type(tweet) is 'pyspark.sql.types.Row':
     #     raise AttributeError('You are trying to give a Spark SQL Row, you need to be more specific!')
-    import re # needed for stripping text of special characters
     ascii_tweet = ''
     if type(tweet) is bytes:
         print("This is bytes: ", tweet, " and we need to change it.")
@@ -91,11 +146,9 @@ def normalizeAndSplit(tweet):
 # done
 
 def normalizeAndSplitWithLemmatization(tweet):
-    import nltk
     # TODO this attempt to catch faulty input does not work!
     # if type(tweet) is 'pyspark.sql.types.Row':
     #     raise AttributeError('You are trying to give a Spark SQL Row, you need to be more specific!')
-    import re # needed for stripping text of special characters
     ascii_tweet = ''
     if type(tweet) is bytes:
         print("This is bytes: ", tweet, " and we need to change it.")
@@ -114,12 +167,10 @@ def normalizeAndSplitWithLemmatization(tweet):
                 print("Type is: "+str(type(tweet)))
         # start stemming and all that
         lcase_tweet = ascii_tweet.lower()
-        from ttp import ttp
         # twitter tweet cleaner
         parsed_tweet = ttp.escape(lcase_tweet)
         nospec_tweet = removeSpecialCharactersAndSomeURLs(parsed_tweet)
         # start stemming
-        from nltk.stem import WordNetLemmatizer
         wordnet_lemmatizer = WordNetLemmatizer()
         words = nospec_tweet.split()
         # lemmatization for each word
@@ -139,11 +190,6 @@ def printProbVect(ldaModel, dictionary, vec):
     return ldaModel[docToVector(dictionary, vec)]
 
 def doLDA(corpus, dictionary, num_topics, tweet_ids):
-    import re # needed for stripping text of special characters
-    import unicodedata # needed for unicode to ASCII conversion without errors
-    import gensim # needed for text clustering
-    from gensim import corpora, models, similarities # needed for text clustering
-    import sklearn
     # extract LDA topics
     lda = models.ldamodel.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics, update_every=0, passes=20)
     # Now that the topic model is built (variable named lda),
@@ -244,8 +290,6 @@ def wordCountFromTopicDistributions(distros_all, sqlContext):
     return topics
 
 def TFIDFsFromTopicDistributions(distros_all, sqlContext, corpus, dictionary):
-    import gensim # needed for text clustering
-    from gensim import corpora, models, similarities # needed for text clustering
     tfidf_model = models.TfidfModel(corpus)
     topics = {}
     counter = 0
@@ -261,9 +305,31 @@ def TFIDFsFromTopicDistributions(distros_all, sqlContext, corpus, dictionary):
         print(" -- Analysis for tweet "+str(counter)+"/"+str(length)+" completed.")
     return topics
 
-def writeTFIDFsToCSV(topics):
-    import csv
-    with open('tfidf_topics.csv', 'w', newline='') as csvfile:
+
+def distrosForTweetsFromLDAModel(ldaModel, dictionary, tweets):
+    distros = []
+    for tweet in tweets:
+        distro_row = (tweet.id, printProbVect(ldaModel, dictionary, tweet.tweet_text))
+        distros.append(distro_row)
+    return distros
+
+def TFIDFsFromMongoDBTopicDistributions(distros_all, corpus, dictionary):
+    tfidf_model = models.TfidfModel(corpus)
+    topics = {}
+    counter = 0
+    for tweet in distros_all:
+        length = len(distros_all)
+        ldadist = tweet[1] # prob distribution
+        tweet_id = tweet[0]
+        text = Tweet.objects(tweet_id=tweet_id).first().tweet_text
+        word_array = preprocessStopWordsSplitLemmatize(text)
+        topics = produce_tfidf_topics(word_array, topics, ldadist, dictionary, tfidf_model)
+        counter = counter+1
+        print(" -- Analysis for tweet "+str(counter)+"/"+str(length)+" completed.")
+    return topics
+
+def writeTFIDFsToCSV(topics, filename='tfidf_topics.csv'):
+    with open(filename, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
         header = ['word', 'tfidf', 'topic']
         for topic in topics:
@@ -274,7 +340,6 @@ def writeTFIDFsToCSV(topics):
                 writer.writerow([key, value, topicname])
 
 def writeWordCountsToCSV(topics):
-    import csv
     for topic in topics:
         fname = str(topic)+'.csv'
         with open(fname, 'w', newline='') as csvfile:
@@ -294,11 +359,6 @@ def runWithoutMap(tweet_texts):
     return out_array
 
 def run(tweet_texts):
-    import re
-    import unicodedata # needed for unicode to ASCII conversion without errors
-    import gensim # needed for text clustering
-    from gensim import corpora, models, similarities # needed for text clustering
-    import sklearn
     # load stopwords into memory from file
     stopwords = loadStopWordsFromFile()
     # tweets without rare rowrds
@@ -315,7 +375,6 @@ def run(tweet_texts):
     return texts
 
 def buildDictionaryFromTexts(texts):
-    from gensim import corpora
     dictionary = corpora.Dictionary(texts)
     dictionary.filter_extremes(no_below=5, no_above=0.3, keep_n=None) # used instead of manually doing this
     return dictionary
@@ -325,7 +384,6 @@ def buildCorpusFromDictionaryAndTexts(texts, dictionary):
     return corpus
 
 def doHDP(corpus, dictionary):
-    from gensim import models
     hdp = models.hdpmodel.HdpModel(corpus, dictionary)
     # hdp.print_topics(topics=-1, topn=1)
     return hdp
@@ -379,7 +437,3 @@ def createTopicWordCounts(num_topics, distros_all, tweet_rdd, sqlContext):
                         topics_dict[topic_name] = {word: prob}
     return topics_dict
 # done
-
-
-def sayHello():
-    print("This works")

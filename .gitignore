@@ -3,6 +3,6 @@
 metastore_db
 __pycache__
 __pycache__/*
-tfidf_topics.csv
+*.csv
 .DS_Store
 */.DS_Store
