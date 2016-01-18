@@ -5,11 +5,12 @@ from pprint import pprint as pp
 
 connect('twitterusers')
 
+
 class Tweet(Document):
     tweet_id = StringField(required=True, primary_key=True, unique=True)
     user_id = StringField(required=True)
     tweet_text = StringField(required=True)
-    raw_json_as_dict = DictField(required=True)
+    raw_json_as_dict = DictField()
 
 class User(Document):
     user_id = StringField(required=True, primary_key=True, unique=True)
@@ -17,7 +18,7 @@ class User(Document):
     followers_count = IntField(required=True)
     following_count = IntField(required=True)
     listed_count = IntField(required=True)
-    ratio = FloatField(required=True)
+    ratio = FloatField()
     tweet_count = IntField(required=True)
     tweets = ListField()
     ratio_per_tweet = FloatField()

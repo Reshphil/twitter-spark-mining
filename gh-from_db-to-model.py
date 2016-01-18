@@ -11,7 +11,7 @@ import csv
 
 
 # Use MongoDB to fetch the top 10 users with the highest ratio_per_tweet index
-users = twpr.User.objects().order_by('ratio_per_tweet').limit(100)
+users = twpr.User.objects() #.order_by('ratio_per_tweet').limit(100)
 # from those users, get the tweet texts
 tweet_texts = twpr.User.getTextsFromUsers(users)
 # and then pre-process those texts

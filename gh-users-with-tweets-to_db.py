@@ -1,5 +1,8 @@
 from mongoengine_models import *
-
+import processing as twpr
+import re
+import json
+import random
 fs_path = "/Users/timo/Code/spark/"
 
 
@@ -8,7 +11,7 @@ fs_path = "/Users/timo/Code/spark/"
 #path = "/Users/timo/Ruby/GetTweets/stored_tweets/*"
 
 # the rest of the path for where the tweets to be analyzed reside
-path = fs_path+"stored_tweets/2015-05-08.json"
+path = fs_path+"stored_tweets/*.json"
 # load tweets into Apache SparkSQL (sqlContext)
 tweets = sqlContext.read.json(path)
 
@@ -22,14 +25,75 @@ t = sqlContext.sql("SELECT distinct(user.id_str) as user_id, first(user.screen_n
     min(user.listed_count) as listed_c, \
     max(user.statuses_count) as tweets_c \
     FROM tweets \
-    GROUP BY user.id_str ORDER BY ratio DESC \
-    LIMIT 1000")
+    GROUP BY user.id_str ORDER BY ratio DESC")
 
 t.registerTempTable("tweet_users")
 
-u = sqlContext.sql("SELECT * FROM tweet_users WHERE following_c > 0 AND ratio > 0 AND followers_c > 250 AND listed_c > 5 AND tweets_c > 100 LIMIT 1000")
+u = sqlContext.sql("SELECT * FROM tweet_users WHERE following_c > 0 AND followers_c > 250 AND tweets_c > 100")
 
-users = u.collect()
+
+u_id = sqlContext.sql("SELECT user_id FROM tweet_users WHERE following_c > 0 AND followers_c > 250 AND tweets_c > 100")
+
+uids = u_id.collect()
+
+sampled_uids = random.sample(uids, 500)
+
+
+uids_arr = []
+for i in sampled_uids:
+    uids_arr.append(i.user_id)
+
+tw = sqlContext.sql("SELECT * FROM tweets WHERE user.id_str in ("+','.join(uids_arr)+")")
+
+def saveUserWithoutRatio(tweet):
+    # populate user object
+    try:
+        user_object = User(user_id=tweet.user.id_str, \
+            user_name=tweet.user.screen_name, \
+            followers_count=tweet.user.followers_count, \
+            following_count=tweet.user.friends_count, \
+            listed_count=tweet.user.listed_count, \
+            tweet_count=tweet.user.statuses_count).save()
+    except ValidationError as e:
+        print("FYI: Saving user ", user.username, " failed because: ", e)
+        pass
+    else:
+        return user_object
+
+def saveTweet(tweet):
+    tweet_id_str = tweet.id_str
+    tweet_user_id_str = tweet.user.id_str
+    # json_to_dict = tweet
+    query = twpr.User.objects(user_id=tweet_user_id_str)
+    if len(query) == 0:
+        user = saveUserWithoutRatio(tweet)
+    else:
+        user = query.first()
+    try:
+        tweet_object = Tweet(tweet_id=tweet_id_str, \
+            user_id=tweet_user_id_str, \
+            tweet_text=tweet.text).save()
+        # print(" --- : "+tweet.text)
+    except ValidationError as e:
+        print("FYI: Saving tweet ", tweet.text, " failed because: ", e)
+        pass
+    else:
+        try:
+            if tweet_user_id_str not in user.tweets:
+                user.tweets.append(tweet_user_id_str)
+            user.save()
+        except:
+            print("Save failed")
+            return False
+        else:
+            return True
+
+out_tweet = tw.map(lambda x: saveTweet(x))
+
+out_tweet.collect()
+
+######
+
 
 def printUserInfo(user):
     # print(user.user_id)
@@ -81,7 +145,7 @@ def proceedToSaveTweets(user, tweet_id_array):
     else:
         return tweet_id_array
 
-def saveUser(user, ratio):
+def saveUserWithRatio(user, ratio):
     # populate user object
     try:
         user_object = User(user_id=user.user_id, \
